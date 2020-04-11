@@ -38,8 +38,8 @@ def request_token():
             'client_info': 1,
             'grant_type': 'client_credentials',
         },
-        verify = False)
-    
+        verify = True)
+
     return r.json()
 
 def main(argv):
