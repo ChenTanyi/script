@@ -53,6 +53,8 @@ def download(uri: str, filepath: str, sess: requests.Session):
     if os.path.isfile(filepath):
         headers['Range'] = f'bytes={os.stat(filepath).st_size}-'
     r = sess.get(uri, stream = True, headers = headers)
+    if r.status_code == 416:
+        return
     r.raise_for_status()
 
     if 'text/html' in r.headers['content-type']:
