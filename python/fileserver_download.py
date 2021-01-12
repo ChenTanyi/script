@@ -17,7 +17,7 @@ except:
 
 
 def download_file(r: requests.Response, filename: str):
-    logging.debug(f'Downloading {filename} from {r.url}')
+    logging.info(f'Downloading {filename} from {r.url}')
     with open(filename, 'ab+') as fout:
         for content in r.iter_content(chunk_size = None):
             fout.write(content)
@@ -25,7 +25,7 @@ def download_file(r: requests.Response, filename: str):
 
 def download_folder(r: requests.Response, filepath: str,
                     sess: requests.Session):
-    logging.debug(f'Downloading {filepath} from {r.url}')
+    logging.info(f'Downloading {filepath} from {r.url}')
 
     html = bs4.BeautifulSoup(r.content, PARSER)
     if not html.title.text.strip().startswith('Index of '):
