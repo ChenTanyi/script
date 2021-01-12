@@ -18,7 +18,7 @@ except:
 
 def download_file(r: requests.Response, filename: str):
     logging.debug(f'Downloading {filename} from {r.url}')
-    with open(filename, 'wb') as fout:
+    with open(filename, 'ab+') as fout:
         for content in r.iter_content(chunk_size = None):
             fout.write(content)
 
@@ -49,7 +49,10 @@ def download_folder(r: requests.Response, filepath: str,
 
 
 def download(uri: str, filepath: str, sess: requests.Session):
-    r = sess.get(uri, stream = True)
+    headers = {}
+    if os.path.isfile(filepath):
+        headers['Range'] = f'bytes={os.stat(filepath).st_size}-'
+    r = sess.get(uri, stream = True, headers = headers)
     r.raise_for_status()
 
     if 'text/html' in r.headers['content-type']:
