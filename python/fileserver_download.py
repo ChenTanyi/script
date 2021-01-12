@@ -19,8 +19,9 @@ except:
 def download_file(r: requests.Response, filename: str):
     logging.info(f'Downloading {filename} from {r.url}')
     with open(filename, 'ab+') as fout:
-        for content in r.iter_content(chunk_size = None):
+        for content in r.iter_content(chunk_size = 4096):
             fout.write(content)
+            fout.flush()
 
 
 def download_folder(r: requests.Response, filepath: str,
