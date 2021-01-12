@@ -63,6 +63,7 @@ def arg_parse():
     parser.add_argument('-u', '--url', required = True)
     parser.add_argument('-d', '--directory')
     parser.add_argument('-a', '--authorization')
+    parser.add_argument('-x', '--proxy')
 
     return parser.parse_args()
 
@@ -74,6 +75,11 @@ def main():
         if args.authorization:
             sess.headers[
                 'Authorization'] = f'Basic {base64.b64encode(args.authorization.encode()).decode()}'
+        if args.proxy:
+            sess.proxies = {
+                'http': args.proxy,
+                'https': args.proxy,
+            }
 
         if not args.directory:
             args.directory = urllib.parse.unquote(
