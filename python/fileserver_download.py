@@ -87,11 +87,10 @@ def main():
                 'https': args.proxy,
             }
 
-        if not args.directory:
-            args.directory = urllib.parse.unquote(
-                urllib.parse.urlparse(
-                    args.url).path.strip('/').split('/')[-1]) or '.'
-        download(args.url, args.directory, sess)
+        args.directory = args.directory or '.'
+        sub_dir = urllib.parse.unquote(
+            urllib.parse.urlparse(args.url).path.strip('/').split('/')[-1])
+        download(args.url, os.path.join(args.directory, sub_dir), sess)
 
 
 if __name__ == "__main__":
