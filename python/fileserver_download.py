@@ -78,7 +78,7 @@ def download(uri: str, filepath: str, sess: requests.Session):
         return
     r.raise_for_status()
 
-    if 'text/html' in r.headers['content-type']:
+    if 'text/html' in r.headers['content-type'] and r.url.strip().endswith('/'):
         download_folder(r, filepath, sess)
     else:
         download_file(r, filepath)
