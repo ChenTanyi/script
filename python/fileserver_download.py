@@ -29,6 +29,7 @@ def bytes_readable(b: float) -> str:
 
 def download_file(r: requests.Response, filename: str):
     logging.info(f'Downloading {filename} from {r.url}')
+    content_length = int(r.headers['Content-Length'])
     with open(filename, 'ab+') as fout:
         start = datetime.datetime.now()
         count = 0
@@ -39,7 +40,10 @@ def download_file(r: requests.Response, filename: str):
             end = datetime.datetime.now()
             if end - start > datetime.timedelta(seconds = 1):
                 speed = count / (end - start).total_seconds()
-                logging.info(f'Download Speed: {bytes_readable(speed)}/s')
+                content_length -= count
+                logging.info(
+                    f'Download Speed: {bytes_readable(speed)}/s, Left: {bytes_readable(content_length)}'
+                )
                 start = end
                 count = 0
 
