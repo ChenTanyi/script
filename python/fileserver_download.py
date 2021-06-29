@@ -5,6 +5,7 @@ import bs4
 import sys
 import base64
 import logging
+import datetime
 import argparse
 import requests
 import urllib.parse
@@ -16,12 +17,31 @@ except:
     PARSER = 'html.parser'
 
 
+def bytes_readable(b: float) -> str:
+    suffixes = [' B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+    for suffix in suffixes:
+        if b < 1024:
+            return f'{b:.2f}{suffix}'
+        else:
+            b /= 1024
+    return 'inf'
+
+
 def download_file(r: requests.Response, filename: str):
     logging.info(f'Downloading {filename} from {r.url}')
     with open(filename, 'ab+') as fout:
+        start = datetime.datetime.now()
+        count = 0
         for content in r.iter_content(chunk_size = 4096):
             fout.write(content)
             fout.flush()
+            count += len(content)
+            end = datetime.datetime.now()
+            if end - start > datetime.timedelta(seconds = 1):
+                speed = count / (end - start).total_seconds()
+                logging.info(f'Download Speed: {bytes_readable(speed)}/s')
+                start = end
+                count = 0
 
 
 def download_folder(r: requests.Response, filepath: str,
