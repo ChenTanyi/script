@@ -51,6 +51,7 @@ def merge_ass(f1: str, f2: str, out: str, index: int):
 
 
 if __name__ == "__main__":
+    os.makedirs(output_folder, exist_ok = True)
     first_files = sorted(os.listdir(first_folder))
     second_files = sorted(os.listdir(second_folder))
     output_files = sorted(os.listdir(output_folder))
@@ -73,6 +74,8 @@ if __name__ == "__main__":
                         assert output_name, "No Output Name"
                         first_files.pop(i1)
                         second_files.pop(i2)
+
+                        print(f'merge {f1}, {f2} -> {output_name}')
 
                         merge_ass(
                             os.path.join(first_folder, f1),
