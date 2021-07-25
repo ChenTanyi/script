@@ -11,7 +11,7 @@ second_file = r'.*\[{:0>2d}\].*\.ass'
 second_encode = 'utf-16-le'
 
 output_folder = ''
-output_file = r'(.*[{:0>2d}].*)\.mkv'
+output_file = r'(.*\[{:0>2d}\].*)\.mkv'
 
 skip_part = ['[Script Info]']
 merge_part = ['[V4+ Styles]', '[Events]']
