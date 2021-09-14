@@ -1,0 +1,220 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: proxy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mitmproxy-init
+  namespace: proxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mitmproxy-init
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "configmaps"
+    verbs:
+      - "create"
+      - "update"
+      - "patch"
+      - "get"
+      - "list"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mitmproxy-init
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mitmproxy-init
+subjects:
+  - kind: ServiceAccount
+    name: mitmproxy-init
+    namespace: proxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mitmproxy-init
+  namespace: proxy
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "create"
+      - "update"
+      - "patch"
+      - "get"
+      - "list"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mitmproxy-init
+  namespace: proxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mitmproxy-init
+subjects:
+  - kind: ServiceAccount
+    name: mitmproxy-init
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mitmproxy-init
+  namespace: proxy
+data:
+  init.sh: |
+    set -e
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    chmod +x kubectl && mv kubectl /usr/bin
+    export NAMESPACE=$(cat /run/secrets/kubernetes.io/serviceaccount/namespace)
+    export PROXY="http://mitmproxy.$NAMESPACE.svc.cluster.local:8080"
+    NEED_INIT=""
+    kubectl get secret mitmproxy-ca || NEED_INIT="1"
+    if [ -n "$NEED_INIT" ]; then
+      kubectl create configmap -n default mitmproxy-proxy --from-literal=http_proxy=$PROXY --from-literal=https_proxy=$PROXY --from-literal=HTTP_PROXY=$PROXY --from-literal=HTTPS_PROXY=$PROXY --dry-run=client -o yaml | kubectl apply -f -
+
+      openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=mitmproxy' -extensions ca -config <(printf "[req]\ndistinguished_name=req\n[ca]\nbasicConstraints=critical,CA:true\nkeyUsage=critical,keyCertSign,cRLSign\n")
+      cat key.pem cert.pem > ca.pem
+      kubectl create secret generic mitmproxy-ca --from-file=mitmproxy-ca.pem=ca.pem --dry-run=client -o yaml | kubectl apply -f -
+
+      cp cert.pem /usr/local/share/ca-certificates/mitmproxy.crt
+      update-ca-certificates
+      kubectl create configmap -n default mitmproxy-ca-cert --from-file=ca-certificates.crt=/etc/ssl/certs/ca-certificates.crt --dry-run=client -o yaml | kubectl apply -f -
+    fi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mitmproxy-init
+  namespace: proxy
+spec:
+  template:
+    spec:
+      serviceAccountName: mitmproxy-init
+      containers:
+        - name: init
+          image: alpine
+          command:
+            - sh
+          args:
+            - -c
+            - apk add curl openssl bash && bash /app/init.sh
+          volumeMounts:
+            - mountPath: /app
+              name: mitmproxy-init
+      volumes:
+        - name: mitmproxy-init
+          configMap:
+            name: mitmproxy-init
+      restartPolicy: OnFailure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mitmproxy
+  namespace: proxy
+spec:
+  selector:
+    matchLabels:
+      app: mitmproxy
+  template:
+    metadata:
+      labels:
+        app: mitmproxy
+    spec:
+      initContainers:
+        - name: init
+          image: alpine
+          command:
+            - sh
+          args:
+            - -c
+            - cp /cert/mitmproxy-ca.pem /home/mitmproxy/.mitmproxy/mitmproxy-ca.pem
+          volumeMounts:
+            - mountPath: /cert
+              name: mitmproxy-ca
+            - mountPath: /home/mitmproxy/.mitmproxy
+              name: mitmproxy-home
+      containers:
+        - name: mitmproxy
+          image: mitmproxy/mitmproxy
+          args:
+            - mitmweb
+            - --web-host
+            - "0.0.0.0"
+          ports:
+            - containerPort: 8080
+            - containerPort: 8081
+          volumeMounts:
+            - mountPath: /home/mitmproxy/.mitmproxy
+              name: mitmproxy-home
+      volumes:
+        - name: mitmproxy-ca
+          secret:
+            secretName: mitmproxy-ca
+        - name: mitmproxy-home
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mitmproxy
+  namespace: proxy
+spec:
+  selector:
+    app: mitmproxy
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: proxy
+  - port: 80
+    targetPort: 8081
+    name: web
+---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test
+#   namespace: default
+# spec:
+#   selector:
+#     matchLabels:
+#       app: test
+#   template:
+#     metadata:
+#       labels:
+#         app: test
+#     spec:
+#       containers:
+#         - name: test
+#           image: alpine
+#           args:
+#             - sleep
+#             - 9999d
+#           envFrom:
+#             - configMapRef:
+#                 name: mitmproxy-proxy
+#           volumeMounts:
+#             - mountPath: /etc/ssl/certs/ca-certificates.crt
+#               name: mitmproxy-ca-cert
+#               subPath: ca-certificates.crt
+#       volumes:
+#         - name: mitmproxy-ca-cert
+#           configMap:
+#             name: mitmproxy-ca-cert
+---
+# kubectl port-forward svc/mitmproxy 80
