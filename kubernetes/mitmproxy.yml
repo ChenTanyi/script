@@ -106,7 +106,7 @@ spec:
       serviceAccountName: mitmproxy-init
       containers:
         - name: init
-          image: alpine
+          image: alpine:3.14
           command:
             - sh
           args:
@@ -137,7 +137,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: alpine
+          image: alpine:3.14
           command:
             - sh
           args:
@@ -150,7 +150,7 @@ spec:
               name: mitmproxy-home
       containers:
         - name: mitmproxy
-          image: mitmproxy/mitmproxy
+          image: mitmproxy/mitmproxy:7.0.2
           args:
             - mitmweb
             - --web-host
@@ -201,7 +201,7 @@ spec:
 #     spec:
 #       containers:
 #         - name: test
-#           image: alpine
+#           image: alpine:3.14
 #           args:
 #             - sleep
 #             - 9999d
