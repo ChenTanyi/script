@@ -8,6 +8,7 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 def request_token():
     auth_file = os.environ.get('AZURE_AUTH_LOCATION')
     client_id = None
@@ -31,7 +32,7 @@ def request_token():
 
     r = requests.post(
         f'https://login.microsoftonline.com/{tenant_id}/oauth2/token',
-        data={
+        data = {
             'resource': 'https://management.core.windows.net/',
             'client_id': client_id,
             'client_secret': client_secret,
@@ -40,15 +41,37 @@ def request_token():
         },
         verify = True)
 
+    if r.status_code >= 400:
+        print(f'{r.request.method} {r.url} {r.status_code}: {r.content}')
+        sys.exit(1)
+
     return r.json()
+
+
+def print_subs(token):
+    r = requests.get(
+        'https://management.azure.com/subscriptions?api-version=2020-01-01',
+        headers = {'Authorization': f'Bearer {token}'},
+        verify = True,
+    )
+
+    if r.status_code >= 400:
+        print(f'{r.request.method} {r.url} {r.status_code}: {r.content}')
+        sys.exit(1)
+
+    for sub in r.json()['value']:
+        print(sub['subscriptionId'], sub['displayName'])
+
 
 def main(argv):
     token = request_token()['access_token']
     print(token)
+    print_subs(token)
     if 'win' in sys.platform:
         os.system(f'echo {token} | clip')
 
+
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s')
+    logging.basicConfig(format = '%(asctime)s %(levelname)s %(message)s')
     os.chdir(os.path.abspath(os.path.dirname(sys.argv[0])))
     main(sys.argv)
