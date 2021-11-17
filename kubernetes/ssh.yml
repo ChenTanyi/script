@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ssh-init
+data:
+  init.sh: |
+    cd $(dirname "$0")
+    mkdir -p /root/.ssh/
+    cp authorized_keys /root/.ssh/
+
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y openssh-server
+    mkdir -p /var/run/ssh /run/sshd
+    echo 'root:123' | chpasswd
+    sed 's/PermitRootLogin without-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+    /usr/sbin/sshd
+
+    cd /tmp
+    apt-get install -y wget tar
+    wget https://github.com/yudai/gotty/releases/download/v1.0.1/gotty_linux_amd64.tar.gz
+    tar zxf gotty_linux_amd64.tar.gz
+    rm gotty_linux_amd64.tar.gz
+    chmod +x gotty
+    mv gotty /usr/bin
+    gotty -w --reconnect bash
+
+  authorized_keys: |
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ssh
+spec:
+  selector:
+    matchLabels:
+      app: ssh
+  template:
+    metadata:
+      labels:
+        app: ssh
+    spec:
+      containers:
+        - name: ssh
+          image: debian # python,golang,node,maven
+          args:
+            - bash
+            - /app/init.sh
+          volumeMounts:
+            - mountPath: /app
+              name: init
+      volumes:
+        - name: init
+          configMap:
+            name: ssh-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ssh
+spec:
+  type: NodePort
+  selector:
+    app: ssh
+  ports:
+  - port: 22
+    targetPort: 22
