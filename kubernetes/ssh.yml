@@ -4,6 +4,10 @@ metadata:
   name: ssh-init
 data:
   init.sh: |
+    echo "set -a" > /etc/profile.d/set_env.sh
+    env | egrep -v "^(HOME=|USER=|MAIL=|LC_ALL=|LS_COLORS=|LANG=|HOSTNAME=|PWD=|TERM=|SHLVL=|LANGUAGE=|_=)" >> /etc/profile.d/set_env.sh
+    echo "set +a" >> /etc/profile.d/set_env.sh
+
     cd $(dirname "$0")
     mkdir -p /root/.ssh/
     cp authorized_keys /root/.ssh/
