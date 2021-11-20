@@ -18,20 +18,19 @@ endpoint = 'https://login.microsoftonline.com/{tenant_id}/oauth2/token'
 
 
 def sign_jwt(tenant_id, client_id, certificate_file) -> str:
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     expire = now + datetime.timedelta(minutes = 10)
 
     with open(certificate_file, 'rb') as fin:
-        private_key = fin.read()
+        private_key_bytes = fin.read()
     cert = OpenSSL.crypto.dump_certificate(
         OpenSSL.crypto.FILETYPE_ASN1,
         OpenSSL.crypto.load_certificate(
             OpenSSL.crypto.FILETYPE_PEM,
-            private_key,
+            private_key_bytes,
         ),
     )
     fingerprint = hashlib.sha1(cert).digest()
-
     header = {
         'alg': 'RS256',
         'typ': 'JWT',
@@ -45,6 +44,14 @@ def sign_jwt(tenant_id, client_id, certificate_file) -> str:
         'nbf': int(now.timestamp()),
         'exp': int(expire.timestamp()),
     }
+
+    try:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.backends import default_backend
+        private_key = serialization.load_pem_private_key(
+            private_key_bytes, password = None, backend = default_backend())
+    except:
+        private_key = private_key_bytes
     return jwt.encode(payload, private_key, 'RS256', header)
 
 
@@ -71,9 +78,10 @@ def request_token():
         tenant_id = azure_auth.get('tenantId')
         client_id = azure_auth.get('clientId')
         client_secret = azure_auth.get('clientSecret')
-        client_certificate = os.path.join(
-            os.path.abspath(os.path.dirname(auth_file)),
-            azure_auth.get('clientCertificate'))
+        client_certificate = azure_auth.get('clientCertificate')
+        if client_certificate:
+            client_certificate = os.path.join(
+                os.path.abspath(os.path.dirname(auth_file)), client_certificate)
 
     body = {
         'resource': 'https://management.azure.com/',
