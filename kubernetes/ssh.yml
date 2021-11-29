@@ -1,3 +1,52 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ssh-init
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ssh-init
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "create"
+      - "get"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ssh-init
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ssh-init
+subjects:
+  - kind: ServiceAccount
+    name: ssh-init
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ssh-init
+spec:
+  template:
+    spec:
+      serviceAccountName: ssh-init
+      containers:
+        - name: init
+          image: alpine:3.14
+          command:
+            - sh
+          args:
+            - -c
+            - apk add curl openssh-keygen && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x ./kubectl && mv kubectl /usr/bin && ( kubectl get secret ssh-key || ( rm -rf /root/.ssh/ && ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa && kubectl create secret generic ssh-key --from-file=/root/.ssh/id_rsa --from-file=/root/.ssh/id_rsa.pub && cat /root/.ssh/id_rsa.pub ))
+      restartPolicy: OnFailure
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -54,12 +103,19 @@ spec:
           volumeMounts:
             - mountPath: /app
               name: init
+            - mountPath: /root/.ssh/id_rsa
+              name: key
+              subPath: id_rsa
             - mountPath: /root/storage
               name: storage
       volumes:
         - name: init
           configMap:
             name: ssh-init
+        - name: key
+          secret:
+            secretName: ssh-key
+            defaultMode: 0600
         - name: storage
           persistentVolumeClaim:
             claimName: storage
