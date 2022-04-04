@@ -1,0 +1,20 @@
+version: "3"
+services:
+  gotty:
+    image: wernight/qbittorrent
+    ports:
+      - 80:8080
+    volumes:
+      - downloads:/downloads
+      - config:/config
+volumes:
+  downloads:
+    driver_opts:
+      type: cifs
+      o: "addr=$FILE_HOST,username=$STORAGE_ACCOUNT,password=$STORAGE_KEY"
+      device: "//$FILE_HOST/qbit"
+  config:
+    driver_opts:
+      type: cifs
+      o: "addr=$FILE_HOST,username=$STORAGE_ACCOUNT,password=$STORAGE_KEY"
+      device: "//$FILE_HOST/qbit-config"
