@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smb
+type: Opaque
+stringData:
+  username: $USERNAME
+  password: $PASSWORD
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: smb
+spec:
+  containers:
+    - name: debian
+      image: debian
+      args:
+        - sleep
+        - 9999d
+      volumeMounts:
+        - mountPath: /mnt/data
+          name: smb
+  volumes:
+    - name: smb
+      csi:
+        driver: smb.csi.k8s.io
+        volumeAttributes:
+          source: $SOURCE
+        nodeStageSecretRef:
+          name: smb
