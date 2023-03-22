@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+        - name: test
+          image: alpine:3.14
+          args:
+            - sleep
+            - 9999d
+          envFrom:
+            - configMapRef:
+                name: mitmproxy-proxy
+          volumeMounts:
+            - mountPath: /etc/ssl/certs/ca-certificates.crt
+              name: mitmproxy-ca-cert
+              subPath: ca-certificates.crt
+      volumes:
+        - name: mitmproxy-ca-cert
+          configMap:
+            name: mitmproxy-ca-cert
+---
